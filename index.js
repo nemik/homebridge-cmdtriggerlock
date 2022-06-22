@@ -83,8 +83,14 @@ CmdTriggerLock.prototype.setupConfig = function(config) {
 CmdTriggerLock.prototype.createLockService = function() {
   this.lockService = new Service.LockMechanism(this.name);
 
-  this.lockService.getCharacteristic(Characteristic.On)
-    .on('set', this.lockSetOn.bind(this));
+  this.is_on = false;
+
+  this.lockService.getCharacteristic(Characteristic.LockCurrentState)
+    .onGet(this.handleLockCurrentStateGet.bind(this));
+
+  this.lockService.getCharacteristic(Characteristic.LockTargetState)
+    .onGet(this.handleLockTargetStateGet.bind(this))
+    .onSet(this.handleLockTargetStateSet.bind(this));
 
   if (this.interactiveDelay && !this.stateful) {
     const label = `${this.interactiveDelayLabel} (${this.delayUnit})`;
@@ -139,7 +145,7 @@ CmdTriggerLock.prototype.createLockService = function() {
       this.log('diffTime: ' + diffTime/1000 + 's');
       if (diffTime > 0 && diffTime < this.delay*this.delayFactor) {
         this.remainingDelay = this.delay*this.delayFactor - diffTime;
-        this.lockService.setCharacteristic(Characteristic.On, true);
+        this.lockService.updateCharacteristic(Characteristic.LockTargetState, Characteristic.LockTargetState.UNSECURED);
       }  
     } 
   }
@@ -156,14 +162,37 @@ CmdTriggerLock.prototype.getServices = function() {
   return [this.accessoryInformationService,  this.lockService];
 }
 
-CmdTriggerLock.prototype.lockSetOn = function(on, callback) {
+CmdTriggerLock.prototype.handleLockCurrentStateGet = function() {
+  this.log.debug('Triggered GET LockCurrentState');
 
+  if(typeof this.is_on != "undefined" && this.is_on) {
+    return Characteristic.LockCurrentState.UNSECURED;
+  }
+  return Characteristic.LockCurrentState.SECURED;
+}
+
+
+/**
+ * Handle requests to get the current value of the "Lock Target State" characteristic
+ */
+CmdTriggerLock.prototype.handleLockTargetStateGet = function() {
+  this.log.debug('Triggered GET LockTargetState');
+
+  if(typeof this.is_on != "undefined" && this.is_on) {
+    return Characteristic.LockTargetState.UNSECURED;
+  }
+  return Characteristic.LockTargetState.SECURED;
+}
+
+
+CmdTriggerLock.prototype.handleLockTargetStateSet = function(on) {
   this.log("Setting lock to " + on);
 
   if (this.stateful) {
 	  this.storage.setItemSync(this.name, on);
   } else {
-    if (on) {
+    if (on === Characteristic.LockTargetState.UNSECURED) {
+      this.is_on = true;
       let delayMs = this.remainingDelay;
       if (delayMs <= 0) {
         delayMs = this.delay*this.delayFactor;
@@ -171,10 +200,12 @@ CmdTriggerLock.prototype.lockSetOn = function(on, callback) {
       }
       this.log("Delay in ms: " + delayMs);
       this.timeout = setTimeout(function() {
-        this.lockService.setCharacteristic(Characteristic.On, false);
+        this.log("Locking again after delay");
+        this.lockService.setCharacteristic(Characteristic.LockTargetState, Characteristic.LockTargetState.SECURED);
       }.bind(this), delayMs);
     } else {
       if (this.timeout !== -1) {
+        this.log("clearing timeout");
         clearTimeout(this.timeout);
       }
     }
@@ -187,24 +218,25 @@ CmdTriggerLock.prototype.lockSetOn = function(on, callback) {
     this.log(`Restored lock state to ${on} after restart, remaining delay ${this.remainingDelay}ms`);
     this.remainingDelay = 0;
   } else {
-    if (on) {
+    if (on === Characteristic.LockTargetState.UNSECURED) {
       if (this.onCmd !== undefined) {
         this.log("Executing ON command: '" + this.onCmd + "'");
         exec(this.onCmd);
+        this.is_on = true;
+        this.lockService.setCharacteristic(Characteristic.LockCurrentState, Characteristic.LockCurrentState.UNSECURED);
       }
     } else {
       if (this.offCmd !== undefined) {
         this.log("Executing OFF command: '" + this.offCmd + "'");
         exec(this.offCmd);
+        this.is_on = false;
+        this.lockService.setCharacteristic(Characteristic.LockCurrentState, Characteristic.LockCurrentState.SECURED);
       }
     }
   }
-
-  callback();
 }
 
 CmdTriggerLock.prototype.lockSetDelay = function(delay, callback) {
-  // this.log(`${this.interactiveDelayLabel}: ${delay}${this.delayUnit}`);
   this.delay = delay;
   this.storage.setItemSync(`${this.name} - interactiveDelay`, delay);
   callback();
