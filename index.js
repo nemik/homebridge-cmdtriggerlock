@@ -9,7 +9,7 @@ module.exports = function(homebridge) {
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
   HomebridgeAPI = homebridge;
-  homebridge.registerAccessory("homebridge-cmdtriggerswitch", "CmdTriggerSwitch", CmdTriggerSwitch);
+  homebridge.registerAccessory("homebridge-cmdtriggerlock", "CmdTriggerLock", CmdTriggerLock);
 }
 
 function keepIntInRange(num, min, max){
@@ -17,7 +17,7 @@ function keepIntInRange(num, min, max){
   return Math.min(Math.max(parsed, min), max);
 }
 
-function CmdTriggerSwitch(log, config) {
+function CmdTriggerLock(log, config) {
   this.log = log;
   this.timeout = -1;		
   this.restoredFromCacheState = false;
@@ -35,11 +35,11 @@ function CmdTriggerSwitch(log, config) {
   
   // Setup Services
   //
-  this.createSwitchService();
+  this.createLockService();
   this.createAccessoryInformationService();
 }
 
-CmdTriggerSwitch.prototype.setupConfig = function(config) {
+CmdTriggerLock.prototype.setupConfig = function(config) {
   this.name = config.name;
   this.onCmd = config.onCmd;
   this.offCmd = config.offCmd;
@@ -80,11 +80,11 @@ CmdTriggerSwitch.prototype.setupConfig = function(config) {
   }
 }
 
-CmdTriggerSwitch.prototype.createSwitchService = function() {
-  this.switchService = new Service.Switch(this.name);
+CmdTriggerLock.prototype.createLockService = function() {
+  this.lockService = new Service.LockMechanism(this.name);
 
-  this.switchService.getCharacteristic(Characteristic.On)
-    .on('set', this.switchSetOn.bind(this));
+  this.lockService.getCharacteristic(Characteristic.On)
+    .on('set', this.lockSetOn.bind(this));
 
   if (this.interactiveDelay && !this.stateful) {
     const label = `${this.interactiveDelayLabel} (${this.delayUnit})`;
@@ -105,18 +105,18 @@ CmdTriggerSwitch.prototype.createSwitchService = function() {
     };
     inherits(Characteristic.Delay, Characteristic);
     Characteristic.Delay.UUID = '8728b5cc-5c49-4b44-bb25-a4c4d4715779';
-    this.switchService.addCharacteristic(Characteristic.Delay);
+    this.lockService.addCharacteristic(Characteristic.Delay);
 
-    this.switchService.getCharacteristic(Characteristic.Delay)
-      .on('set', this.switchSetDelay.bind(this));
+    this.lockService.getCharacteristic(Characteristic.Delay)
+      .on('set', this.lockSetDelay.bind(this));
 
     const cachedInteractiveDelay = this.storage.getItemSync(`${this.name} - interactiveDelay`);
     if(cachedInteractiveDelay === undefined) {
       const cid = keepIntInRange(this.delay, this.delayMin, this.delayMax);
-      this.switchService.setCharacteristic(Characteristic.Delay, cid);
+      this.lockService.setCharacteristic(Characteristic.Delay, cid);
     } else {
       const cid = keepIntInRange(cachedInteractiveDelay, this.delayMin, this.delayMax);
-      this.switchService.setCharacteristic(Characteristic.Delay, cid);
+      this.lockService.setCharacteristic(Characteristic.Delay, cid);
       this.delay = cid;
     }
   }
@@ -127,10 +127,10 @@ CmdTriggerSwitch.prototype.createSwitchService = function() {
       if (cachedState === false) {
         this.restoredFromCacheState = true;
       }
-      this.switchService.setCharacteristic(Characteristic.On, false);
+      this.lockService.setCharacteristic(Characteristic.On, false);
     } else {
       this.restoredFromCacheState = true;
-      this.switchService.setCharacteristic(Characteristic.On, true);
+      this.lockService.setCharacteristic(Characteristic.On, true);
     }
   } else {
     const cachedStartTime = this.storage.getItemSync(`${this.name} - startTime`);
@@ -139,26 +139,26 @@ CmdTriggerSwitch.prototype.createSwitchService = function() {
       this.log('diffTime: ' + diffTime/1000 + 's');
       if (diffTime > 0 && diffTime < this.delay*this.delayFactor) {
         this.remainingDelay = this.delay*this.delayFactor - diffTime;
-        this.switchService.setCharacteristic(Characteristic.On, true);
+        this.lockService.setCharacteristic(Characteristic.On, true);
       }  
     } 
   }
 }
 
-CmdTriggerSwitch.prototype.createAccessoryInformationService = function() {
+CmdTriggerLock.prototype.createAccessoryInformationService = function() {
   this.accessoryInformationService =  new Service.AccessoryInformation()
     .setCharacteristic(Characteristic.Name, this.name)
-    .setCharacteristic(Characteristic.Manufacturer, 'hans-1')
-    .setCharacteristic(Characteristic.Model, 'Command Trigger Switch');
+    .setCharacteristic(Characteristic.Manufacturer, 'nemik')
+    .setCharacteristic(Characteristic.Model, 'Command Trigger Lock');
 }
 
-CmdTriggerSwitch.prototype.getServices = function() {
-  return [this.accessoryInformationService,  this.switchService];
+CmdTriggerLock.prototype.getServices = function() {
+  return [this.accessoryInformationService,  this.lockService];
 }
 
-CmdTriggerSwitch.prototype.switchSetOn = function(on, callback) {
+CmdTriggerLock.prototype.lockSetOn = function(on, callback) {
 
-  this.log("Setting switch to " + on);
+  this.log("Setting lock to " + on);
 
   if (this.stateful) {
 	  this.storage.setItemSync(this.name, on);
@@ -171,7 +171,7 @@ CmdTriggerSwitch.prototype.switchSetOn = function(on, callback) {
       }
       this.log("Delay in ms: " + delayMs);
       this.timeout = setTimeout(function() {
-        this.switchService.setCharacteristic(Characteristic.On, false);
+        this.lockService.setCharacteristic(Characteristic.On, false);
       }.bind(this), delayMs);
     } else {
       if (this.timeout !== -1) {
@@ -181,10 +181,10 @@ CmdTriggerSwitch.prototype.switchSetOn = function(on, callback) {
   }
 
   if (this.restoredFromCacheState) {
-    this.log(`Restored switch state to ${on} after restart.`);
+    this.log(`Restored lock state to ${on} after restart.`);
     this.restoredFromCacheState = false;
   } else if (this.remainingDelay > 0) {
-    this.log(`Restored switch state to ${on} after restart, remaining delay ${this.remainingDelay}ms`);
+    this.log(`Restored lock state to ${on} after restart, remaining delay ${this.remainingDelay}ms`);
     this.remainingDelay = 0;
   } else {
     if (on) {
@@ -203,7 +203,7 @@ CmdTriggerSwitch.prototype.switchSetOn = function(on, callback) {
   callback();
 }
 
-CmdTriggerSwitch.prototype.switchSetDelay = function(delay, callback) {
+CmdTriggerLock.prototype.lockSetDelay = function(delay, callback) {
   // this.log(`${this.interactiveDelayLabel}: ${delay}${this.delayUnit}`);
   this.delay = delay;
   this.storage.setItemSync(`${this.name} - interactiveDelay`, delay);

@@ -1,5 +1,5 @@
 {
-    "pluginAlias": "CmdTriggerSwitch",
+    "pluginAlias": "CmdTriggerLock",
     "pluginType": "accessory",
     "singular": false,
     "schema": {
@@ -15,22 +15,22 @@
                 "type": "boolean",
                 "required": true,
                 "default": false,
-                "description": "If true, the switch remains on instead of being automatically turned off."
+                "description": "If true, the lock remains on instead of being automatically turned off."
             },
             "onCmd": {
                 "title": "On Command",
                 "type": "string",
-                "description": "CLI command that is executed when the switch state changes from off to on."
+                "description": "CLI command that is executed when the lock state changes from off to on."
             },
             "offCmd": {
                 "title": "Off Command",
                 "type": "string",
-                "description": "CLI command that is executed when the switch state changes from on to off."
+                "description": "CLI command that is executed when the lock state changes from on to off."
             },
             "delay": {
                 "title": "Delay",
                 "type": "number",
-                "description": "Timeout value in the unit specified by the argument 'delayUnit' after which the switch turns off itself. If not specified, defaults to 100 units. Only evaluated for stateless switches. If interactiveDelay is specified, this specifies the initial value."
+                "description": "Timeout value in the unit specified by the argument 'delayUnit' after which the lock turns off itself. If not specified, defaults to 100 units. Only evaluated for stateless lockes. If interactiveDelay is specified, this specifies the initial value."
             },
             "delayUnit": {
                 "title": "Delay Unit",
@@ -65,7 +65,7 @@
                     "interactiveDelay": {
                         "title": "Interactive Delay",
                         "type": "boolean",
-                        "description": "Flag to indicate if the timeout value for a stateless switch can be directly changed in a supported HomeKit app like 'Eve for HomeKit'. Defaults to false."
+                        "description": "Flag to indicate if the timeout value for a stateless lock can be directly changed in a supported HomeKit app like 'Eve for HomeKit'. Defaults to false."
                     },
                     "interactiveDelayLabel": {
                         "title": "Interactive Delay Label",
@@ -75,17 +75,17 @@
                     "delayMin": {
                         "title": "Minimum Delay",
                         "type": "number",
-                        "description": "Minimum timeout value that can be set interactively for a stateless switch. Defaults to 100 units."
+                        "description": "Minimum timeout value that can be set interactively for a stateless lock. Defaults to 100 units."
                     },
                     "delayMax": {
                         "title": "Maximum Delay",
                         "type": "number",
-                        "description": "Maximum timeout value that can be set interactively for a stateless switch. Defaults to 1000 units."
+                        "description": "Maximum timeout value that can be set interactively for a stateless lock. Defaults to 1000 units."
                     },
                     "delayStep": {
                         "title": "Delay Step",
                         "type": "number",
-                        "description": "Step value used to increment or decrement the timeout value that can be set interactively for a stateless switch. Defaults to 100 units."
+                        "description": "Step value used to increment or decrement the timeout value that can be set interactively for a stateless lock. Defaults to 100 units."
                     }
                 } 
             }
